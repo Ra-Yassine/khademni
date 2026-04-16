@@ -4,7 +4,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <title>{% block title %}Khadamni{% endblock %}</title>
-        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>â—</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>●</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22>sf</text></svg>">
 
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -111,6 +111,28 @@
                 margin-top: 0.15rem;
             }
 
+            .nav-avatar {
+                width: 34px;
+                height: 34px;
+                border-radius: 999px;
+                object-fit: cover;
+                border: 2px solid rgba(255, 255, 255, 0.35);
+            }
+
+            .nav-avatar-fallback {
+                width: 34px;
+                height: 34px;
+                border-radius: 999px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 800;
+                color: #ffffff;
+                background: rgba(255, 255, 255, 0.18);
+                border: 2px solid rgba(255, 255, 255, 0.25);
+                font-family: 'Poppins', sans-serif;
+            }
+
             main {
                 background: var(--kh-cream);
             }
@@ -145,6 +167,15 @@
                                 <li class="nav-item"><a class="nav-link" href="#" onclick="return false;">Réclamations</a></li>
                             {% endif %}
                             <li class="nav-item"><a class="nav-link" href="{{ path('app_logout') }}">Déconnexion</a></li>
+                            <li class="nav-item ms-lg-2 d-flex align-items-center">
+                                <a class="nav-link py-1" href="{{ path('app_profile') }}" title="Mon profil">
+                                    {% if app.user.avatarPath %}
+                                        <img src="{{ asset(app.user.avatarPath) }}" alt="Avatar" class="nav-avatar">
+                                    {% else %}
+                                        <span class="nav-avatar-fallback">{{ (app.user.prenom ?: app.user.email)|first|upper }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
                         {% else %}
                             <li class="nav-item"><a class="nav-link" href="{{ path('app_login') }}">Connexion</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ path('app_register') }}">Inscription</a></li>
