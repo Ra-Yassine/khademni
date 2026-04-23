@@ -16,15 +16,31 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/legacy/admins')]
 class AdminController extends AbstractController
 {
-    #[Route('/', name: 'app_admin_index', methods: ['GET'])]
-    public function index(AdminRepository $adminRepository): Response
+    #[Route('/', name: 'app_admin_admins', methods: ['GET'])]
+    public function index(AdminRepository $adminRepository, Request $request): Response
     {
-        return $this->render('admin/index.html.twig', [
-            'admins' => $adminRepository->findBy([], ['id' => 'DESC']),
+        $q = $request->query->get('q');
+        
+        // Si une recherche est lancée
+        if ($q) {
+            $admins = $adminRepository->createQueryBuilder('a')
+                ->where('a.email LIKE :q')
+                ->orWhere('a.adminRole LIKE :q')
+                ->setParameter('q', '%'.$q.'%')
+                ->orderBy('a.id', 'DESC')
+                ->getQuery()
+                ->getResult();
+        } else {
+            $admins = $adminRepository->findBy([], ['id' => 'DESC']);
+        }
+
+        return $this->render('admin/admins.html.twig', [
+            'admins' => $admins,
+            'q' => $q
         ]);
     }
 
-    #[Route('/new', name: 'app_admin_new', methods: ['GET', 'POST'])]
+    #[Route('/new', name: 'app_admin_admins_new', methods: ['GET', 'POST'])]
     public function new(Request $request, EntityManagerInterface $entityManager): Response
     {
         $admin = new Admin();
@@ -42,9 +58,8 @@ class AdminController extends AbstractController
             $entityManager->persist($admin);
             $entityManager->flush();
 
-            $this->addFlash('success', 'Administrateur cree avec succes.');
-
-            return $this->redirectToRoute('app_admin_index');
+            $this->addFlash('success', 'Administrateur créé avec succès.');
+            return $this->redirectToRoute('app_admin_admins');
         }
 
         return $this->render('admin/new.html.twig', [
@@ -53,34 +68,21 @@ class AdminController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_admin_show', methods: ['GET'])]
-    public function show(Admin $admin): Response
-    {
-        return $this->render('admin/show.html.twig', [
-            'admin' => $admin,
-        ]);
-    }
-
     #[Route('/{id}/edit', name: 'app_admin_edit', methods: ['GET', 'POST'])]
     public function edit(Request $request, Admin $admin, EntityManagerInterface $entityManager): Response
     {
-        $form = $this->createForm(AdminType::class, $admin, [
-            'is_edit' => true,
-        ]);
+        $form = $this->createForm(AdminType::class, $admin, ['is_edit' => true]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $plainPassword = (string) $form->get('plainPassword')->getData();
-
             if ($plainPassword !== '') {
                 $admin->setPassword(password_hash($plainPassword, PASSWORD_BCRYPT));
             }
 
             $entityManager->flush();
-
-            $this->addFlash('success', 'Administrateur modifie avec succes.');
-
-            return $this->redirectToRoute('app_admin_index');
+            $this->addFlash('success', 'Administrateur modifié avec succès.');
+            return $this->redirectToRoute('app_admin_admins');
         }
 
         return $this->render('admin/edit.html.twig', [
@@ -95,10 +97,8 @@ class AdminController extends AbstractController
         if ($this->isCsrfTokenValid('delete_admin_'.$admin->getId(), (string) $request->request->get('_token'))) {
             $entityManager->remove($admin);
             $entityManager->flush();
-
-            $this->addFlash('success', 'Administrateur supprime avec succes.');
+            $this->addFlash('success', 'Administrateur supprimé.');
         }
-
-        return $this->redirectToRoute('app_admin_index');
+        return $this->redirectToRoute('app_admin_admins');
     }
 }

@@ -19,13 +19,18 @@ class ReponseReclamation
     private ?Reclamation $reclamation = null;
 
     /**
-     * Cette relation cible l'entité parente User. 
-     * Doctrine utilisera l'ID de l'utilisateur (Admin ou Etudiant) 
-     * pour remplir la colonne auteur_id.
+     * L'auteur peut être un User (incluant Admin ou Etudiant via héritage)
      */
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(name: 'auteur_id', referencedColumnName: 'id', nullable: false)]
+    #[ORM\JoinColumn(name: 'auteur_id', referencedColumnName: 'id', nullable: true)]
     private ?User $auteur = null;
+
+    /**
+     * L'auteur peut être une Society
+     */
+    #[ORM\ManyToOne(targetEntity: Society::class)]
+    #[ORM\JoinColumn(name: 'society_auteur_id', referencedColumnName: 'id', nullable: true)]
+    private ?Society $societyAuteur = null;
 
     #[ORM\Column(type: 'text')]
     private ?string $message = null;
@@ -38,20 +43,34 @@ class ReponseReclamation
         $this->date_reponse = new \DateTime();
     }
 
-    // --- Helpers Utiles pour le Chat ---
-
     /**
-     * Permet de savoir facilement si l'auteur est un Admin 
-     * (utile dans vos templates Twig pour le style des bulles de chat)
+     * Requis par Twig dans user/reclamation_support.html.twig
+     * Vérifie si l'auteur du message est un administrateur
      */
     public function isAuteurAdmin(): bool
     {
-        return $this->auteur instanceof Admin;
+        // On vérifie si l'auteur est un User et s'il possède le rôle ADMIN
+        if ($this->auteur !== null) {
+            // Si vous utilisez un héritage type "Admin extends User", instanceof fonctionne.
+            // Sinon, on vérifie les rôles.
+            return in_array('ROLE_ADMIN', $this->auteur->getRoles());
+        }
+
+        return false;
     }
 
-    public function getTypeAuteur(): string
+    /**
+     * Helper optionnel : Retourne le nom de l'auteur peu importe son type
+     */
+    public function getNomAffichage(): string
     {
-        return $this->auteur ? $this->auteur->getType() : 'inconnu';
+        if ($this->societyAuteur) {
+            return $this->societyAuteur->getNom(); // Remplacez par le getter réel de Society
+        }
+        if ($this->auteur) {
+            return $this->auteur->getEmail(); // Ou getNom() / getPrenom()
+        }
+        return "Anonyme";
     }
 
     // --- Getters & Setters ---
@@ -80,6 +99,17 @@ class ReponseReclamation
     public function setAuteur(?User $auteur): self
     {
         $this->auteur = $auteur;
+        return $this;
+    }
+
+    public function getSocietyAuteur(): ?Society
+    {
+        return $this->societyAuteur;
+    }
+
+    public function setSocietyAuteur(?Society $societyAuteur): self
+    {
+        $this->societyAuteur = $societyAuteur;
         return $this;
     }
 

@@ -37,8 +37,13 @@ class Reclamation
     private ?TypeReclamation $type = TypeReclamation::PLATEFORME;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'reclamations')]
-    #[ORM\JoinColumn(name: 'id', referencedColumnName: 'id', nullable: false)]
+    #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: true)]
     private ?User $user = null;
+
+     #[ORM\ManyToOne(targetEntity: Society::class, inversedBy: 'reclamations')]
+    #[ORM\JoinColumn(name: 'society_id', referencedColumnName: 'id', nullable: true)]
+    private ?Society $society = null;
+
 
     #[ORM\OneToMany(targetEntity: ReponseReclamation::class, mappedBy: 'reclamation', cascade: ['persist', 'remove'])]
     private Collection $reponseReclamations;
@@ -135,6 +140,18 @@ class Reclamation
     public function setUser(?User $user): self
     {
         $this->user = $user;
+        return $this;
+    }
+
+    
+    public function getSociety(): ?Society
+    {
+        return $this->society;
+    }
+
+    public function setSociety(?Society $society): self
+    {
+        $this->society = $society;
         return $this;
     }
 

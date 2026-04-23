@@ -86,6 +86,12 @@ class Society implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'subscriptionEndDate', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $subscriptionEndDate = null;
 
+
+    
+    #[ORM\OneToMany(mappedBy: 'Society', targetEntity: Reclamation::class)]
+    private Collection $reclamations;
+
+
     /**
      * @var Collection<int, Offer>
      */
@@ -95,6 +101,7 @@ class Society implements UserInterface, PasswordAuthenticatedUserInterface
     public function __construct()
     {
         $this->offers = new ArrayCollection();
+        $this->reclamations = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -285,5 +292,32 @@ class Society implements UserInterface, PasswordAuthenticatedUserInterface
     public function getUserIdentifier(): string
     {
         return (string) $this->email;
+    }
+
+        /**
+     * @return Collection<int, Reclamation>
+     */
+    public function getReclamations(): Collection
+    {
+        return $this->reclamations;
+    }
+
+    public function addReclamation(Reclamation $reclamation): self
+    {
+        if (!$this->reclamations->contains($reclamation)) {
+            $this->reclamations->add($reclamation);
+            $reclamation->setSociety($this);
+        }
+        return $this;
+    }
+
+    public function removeReclamation(Reclamation $reclamation): self
+    {
+        if ($this->reclamations->removeElement($reclamation)) {
+            if ($reclamation->getSociety() === $this) {
+                $reclamation->setSociety(null);
+            }
+        }
+        return $this;
     }
 }

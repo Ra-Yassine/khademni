@@ -4,6 +4,8 @@ namespace App\Controller;
 
 use App\Entity\Reclamation;
 use App\Entity\ReponseReclamation;
+use App\Entity\Society;
+use App\Entity\User;
 use App\Enum\StatutReclamation;
 use App\Form\ReclamationType;
 use App\Repository\ReclamationRepository;
@@ -27,23 +29,46 @@ class ReclamationUserController extends AbstractController
         Request $request, 
         EntityManagerInterface $entityManager
     ): Response {
-        $user = $this->getUser();
+        $connectedUser = $this->getUser();
+        
+        // Sécurité : Rediriger si non connecté
+        if (!$connectedUser) {
+            return $this->redirectToRoute('app_login');
+        }
+
         $reclamation = new Reclamation();
         $form = $this->createForm(ReclamationType::class, $reclamation);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $reclamation->setUser($user);
+            
+            // On utilise instanceof qui est géré nativement par Symfony/Doctrine
+            // même pour les Proxies.
+            if ($connectedUser instanceof Society) {
+                $reclamation->setSociety($connectedUser);
+                $reclamation->setUser(null);
+            } elseif ($connectedUser instanceof User) {
+                $reclamation->setUser($connectedUser);
+                $reclamation->setSociety(null);
+            }
+
             $reclamation->setDateCreation(new \DateTime());
             $reclamation->setStatut(StatutReclamation::EN_ATTENTE);
+            
             $entityManager->persist($reclamation);
             $entityManager->flush();
 
+            $this->addFlash('success', 'Votre réclamation a été envoyée.');
             return $this->redirectToRoute('app_user_reclamation_index');
         }
 
+        // Filtrage dynamique pour la liste des réclamations
+        $criteria = ($connectedUser instanceof Society) 
+            ? ['society' => $connectedUser] 
+            : ['user' => $connectedUser];
+
         $myReclamations = $reclamationRepository->findBy(
-            ['user' => $user],
+            $criteria,
             ['date_creation' => 'DESC']
         );
 
@@ -59,30 +84,44 @@ class ReclamationUserController extends AbstractController
         Request $request, 
         EntityManagerInterface $entityManager
     ): Response {
-        if ($reclamation->getUser() !== $this->getUser()) {
-            throw $this->createAccessDeniedException("Accès non autorisé.");
+        $connectedUser = $this->getUser();
+
+        // Vérification robuste de la propriété (évite que User A réponde à User B)
+        $isOwner = ($reclamation->getSociety() === $connectedUser || $reclamation->getUser() === $connectedUser);
+        
+        if (!$isOwner) {
+            throw $this->createAccessDeniedException("Vous n'êtes pas autorisé à répondre à cette réclamation.");
         }
 
-        $statut = $reclamation->getStatut();
-        if ($statut === StatutReclamation::RESOLUE || $statut === StatutReclamation::REJETEE) {
-            $this->addFlash('error', 'Cette réclamation est clôturée. Vous ne pouvez plus répondre.');
+        // Vérification du statut (empêche de répondre à une réclamation fermée)
+        if (in_array($reclamation->getStatut(), [StatutReclamation::RESOLUE, StatutReclamation::REJETEE])) {
+            $this->addFlash('error', 'Cette réclamation est clôturée.');
             return $this->redirectToRoute('app_user_reclamation_index');
         }
 
         $messageContent = $request->request->get('message');
         $token = $request->request->get('_token');
 
+        // Validation CSRF et contenu
         if (!$this->isCsrfTokenValid('reply' . $reclamation->getIdReclamation(), $token)) {
+            $this->addFlash('error', 'Jeton de sécurité invalide.');
             return $this->redirectToRoute('app_user_reclamation_index');
         }
 
-        if (!empty(trim($messageContent))) {
+      if (!empty(trim($messageContent))) {
             $reponse = new ReponseReclamation();
             $reponse->setReclamation($reclamation);
             $reponse->setMessage($messageContent);
             $reponse->setDateReponse(new \DateTime());
-            // Utilisation de l'objet User directement (Héritage)
-            $reponse->setAuteur($this->getUser());
+            
+            // Correction du type d'auteur
+            if ($connectedUser instanceof Society) {
+                $reponse->setSocietyAuteur($connectedUser);
+                $reponse->setAuteur(null);
+            } else {
+                $reponse->setAuteur($connectedUser);
+                $reponse->setSocietyAuteur(null);
+            }
 
             $entityManager->persist($reponse);
             $entityManager->flush();

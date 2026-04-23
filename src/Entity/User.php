@@ -85,6 +85,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'subscriptionEndDate', type: 'datetime_immutable', nullable: true)]
     protected ?\DateTimeImmutable $subscriptionEndDate = null;
 
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Reclamation::class)]
+    private Collection $reclamations;
+
+    public function __construct()
+    {
+        $this->reclamations = new ArrayCollection();
+    }
+
     public function getId(): ?int
     {
         return $this->id;

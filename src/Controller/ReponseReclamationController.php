@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Reclamation;
 use App\Entity\ReponseReclamation;
 use App\Entity\Admin;
+use App\Enum\StatutReclamation; // Assurez-vous que cet import existe
 use App\Repository\ReclamationRepository;
 use App\Repository\ReponseReclamationRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -39,6 +40,7 @@ class ReponseReclamationController extends AbstractController
         EntityManagerInterface $entityManager
     ): Response {
         
+        // --- DEBUT TRAITEMENT DU FORMULAIRE (POST) ---
         if ($request->isMethod('POST')) {
             $messageContent = $request->request->get('message');
             $token = $request->request->get('_token');
@@ -52,7 +54,12 @@ class ReponseReclamationController extends AbstractController
                 $reponse = new ReponseReclamation();
                 $reponse->setReclamation($reclamation);
                 $reponse->setMessage($messageContent);
-                $reponse->setAuteur($this->getUser()); // Enregistre l'Admin connecté
+                $reponse->setAuteur($this->getUser()); 
+                $reponse->setDateReponse(new \DateTime());
+
+                // LOGIQUE : Changement de statut automatique
+                $reclamation->setStatut(StatutReclamation::EN_COURS);
+                $reclamation->setDateModification(new \DateTime());
 
                 $entityManager->persist($reponse);
                 $entityManager->flush();
@@ -61,8 +68,9 @@ class ReponseReclamationController extends AbstractController
                     'id' => $reclamation->getIdReclamation()
                 ]);
             }
-        }
+        } // <--- C'était cette accolade qui manquait !
 
+        // --- AFFICHAGE DE LA PAGE (GET) ---
         return $this->render('admin/reclamation/chat.html.twig', [
             'reclamation' => $reclamation,
             'messages' => $reclamation->getReponseReclamations(),
@@ -85,7 +93,6 @@ class ReponseReclamationController extends AbstractController
 
             if (in_array($recId, $processedIds)) continue;
 
-            // Si le dernier message vient d'un utilisateur (pas un Admin), on notifie
             if (!($msg->getAuteur() instanceof Admin)) {
                 $notifications[] = [
                     'username' => $rec->getUser() ? $rec->getUser()->getNom() : 'Anonyme',
